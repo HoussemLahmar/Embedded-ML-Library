@@ -1,6 +1,6 @@
 # ML Embedded Library
 
-A lightweight, header-only machine learning library designed for embedded systems such as ESP32 and STM32. This library enables real-time training, ultra-light inference, and automatic code generation for easy integration into your embedded projects.
+A lightweight, header-only machine learning library designed for embedded systems such as ESP32 and STM32. This library enables real-time training, ultra-light inference, and sensor/actuator integration directly on microcontrollers. The library is optimized for memory-constrained environments.
 
 ---
 
@@ -9,7 +9,7 @@ A lightweight, header-only machine learning library designed for embedded system
 ### Core Capabilities
 - **Real-Time Training**: Update linear models (e.g., linear regression, logistic regression, SVM) directly on microcontrollers with data collected from sensors.
 - **Ultra-Light Inference**: Designed to work without dynamic memory allocation, relying only on fixed-point arithmetic to ensure minimal CPU and memory usage.
-- **Code Generation**: Automatically generate C/C++ code for trained models using a Python script.
+- **Sensor/Actuator Integration**: Provides utilities to interface with ADC, DAC, PWM, GPIO, and timers for seamless integration with sensors and actuators.
 
 ### Supported Models
 1. Linear Regression
@@ -28,23 +28,22 @@ A lightweight, header-only machine learning library designed for embedded system
 ```
 ml_embedded_library/
 ├── include/                         # Public headers
-│   ├── ml_embedded.h                # Main API
+│   ├── ml_library.h                 # Main API for ML models
 │   ├── linear_regression.h          # Linear regression
 │   ├── logistic_regression.h        # Logistic regression
 │   ├── svm.h                        # SVM (Support Vector Machine)
 │   ├── fixed_point.h                # Fixed-point arithmetic utilities
-│   └── preprocess.h                 # Data preprocessing utilities
+│   ├── preprocess.h                 # Data preprocessing utilities
+│   ├── io_library.h                 # Utilities for sensor/actuator integration
+│   └── microcontroller_config.h     # Microcontroller-specific configuration
 ├── src/                             # Implementations
-│   ├── ml_embedded.cpp              # Main API implementation
+│   ├── ml_library.c                 # ML library implementation (C)
 │   ├── linear_regression.cpp        # Linear regression implementation
 │   ├── logistic_regression.cpp      # Logistic regression implementation
 │   ├── svm.cpp                      # SVM implementation
 │   ├── fixed_point.cpp              # Fixed-point arithmetic utilities implementation
-│   └── preprocess.cpp               # Data preprocessing utilities
-├── tools/                           # Python scripts for training and code generation
-│   ├── train.py                     # Training script
-│   ├── codegen.py                   # Code generation script
-│   └── data_acquisition.py          # Data acquisition script
+│   ├── preprocess.cpp               # Data preprocessing utilities
+│   └── io_library.cpp               # Sensor/actuator integration utilities
 ├── examples/                        # Integration examples
 │   ├── imu_classification/          # Example: IMU-based classification
 │   │   ├── src/
@@ -67,8 +66,7 @@ ml_embedded_library/
 
 ### Prerequisites
 1. **C/C++ Compiler**: `arm-none-eabi-gcc` for cross-compilation.
-2. **Python 3.x**: Required for training and code generation scripts.
-3. **PlatformIO**: For deploying examples to microcontrollers like ESP32.
+2. **PlatformIO**: For deploying examples to microcontrollers like ESP32.
 
 ### Build the Library
 #### Using CMake:
@@ -93,36 +91,44 @@ pio run --target upload
 
 ## Usage
 
-### 1. Training a Model
-1. **Collect data** using the `data_acquisition.py` script:
-   ```bash
-   python3 tools/data_acquisition.py --output imu_data.csv
-   ```
+### 1. Training and Predicting on the Microcontroller
 
-2. **Train a model** with the `train.py` script:
-   ```bash
-   python3 tools/train.py --input imu_data.csv --model linear_regression --output weights.json
-   ```
-
-3. **Generate C/C++ code** from the trained model:
-   ```bash
-   python3 tools/codegen.py --model_name imu_model \
-                            --weights 12345,-6789,23456 \
-                            --bias 5432 \
-                            --num_features 3 \
-                            --output_dir examples/imu_classification/src/
-   ```
-
-### 2. Integration on Microcontroller
-Include the generated model header (`imu_model.h`) and use it with the library's API. Example:
+#### Step 1: Initialize the Model
+Define the model weights and bias, initialize the model, and configure the number of features:
 ```cpp
-#include "imu_model.h"
 #include "linear_regression.h"
 
-int32_t imu_data[3] = {1024, -512, 2048};
+int32_t weights[3] = {float_to_fixed_point(0.5), float_to_fixed_point(-0.25), float_to_fixed_point(0.1)};
+int32_t bias = float_to_fixed_point(0.05);
 LinearRegressionModel model;
-linear_regression_init(&model, imu_model.weights, imu_model.bias, imu_model.num_features);
-int32_t prediction = linear_regression_predict(&model, imu_data);
+linear_regression_init(&model, weights, bias, 3);
+```
+
+#### Step 2: Collect Sensor Data
+Use the `io_library` to interface with sensors and actuators:
+```cpp
+#include "io_library.h"
+
+io_init();
+int32_t sensor_data[3];
+sensor_data[0] = read_sensor_data();  // Example: Read ADC data
+sensor_data[1] = read_sensor_data();
+sensor_data[2] = read_sensor_data();
+```
+
+#### Step 3: Train the Model
+Update the model parameters using real-time data collected from the sensors:
+```cpp
+int32_t target = float_to_fixed_point(1.0);  // Example target value
+int32_t learning_rate = float_to_fixed_point(0.01);
+linear_regression_train(&model, sensor_data, target, learning_rate);
+```
+
+#### Step 4: Make Predictions
+Predict actuator commands or outputs using the trained model:
+```cpp
+int32_t prediction = linear_regression_predict(&model, sensor_data);
+write_actuator_data(prediction);  // Example: Write prediction to PWM or DAC
 ```
 
 ---

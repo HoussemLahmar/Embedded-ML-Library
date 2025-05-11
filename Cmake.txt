@@ -1,0 +1,82 @@
+# Nom du projet
+cmake_minimum_required(VERSION 3.16)
+project(ml_embedded_library LANGUAGES C CXX)
+
+# Options de compilation
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Configuration pour la compilation croisée
+if(CMAKE_SYSTEM_NAME STREQUAL "Generic")
+    # Exemple: Compilation croisée pour STM32 avec arm-none-eabi-gcc
+    set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+    set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+    set(CMAKE_LINKER arm-none-eabi-ld)
+    set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
+    set(CMAKE_OBJDUMP arm-none-eabi-objdump)
+    set(CMAKE_SIZE arm-none-eabi-size)
+    set(CMAKE_C_FLAGS "-mcpu=cortex-m4 -mthumb -Os")
+    set(CMAKE_CXX_FLAGS "-mcpu=cortex-m4 -mthumb -Os")
+endif()
+
+# Options pour réduire la taille binaire
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+
+# Chemins
+set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+set(EXAMPLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/examples")
+
+# Ajout des répertoires d'inclusion
+include_directories(${INCLUDE_DIR})
+
+# Fichiers sources pour la bibliothèque
+set(SOURCES
+    ${SRC_DIR}/ml_library.c
+    ${SRC_DIR}/linear_regression.cpp
+    ${SRC_DIR}/logistic_regression.cpp
+    ${SRC_DIR}/svm.cpp
+    ${SRC_DIR}/fixed_point.cpp
+    ${SRC_DIR}/preprocess.cpp
+    ${SRC_DIR}/io_library.cpp
+)
+
+# Cible pour la bibliothèque
+add_library(ml_embedded STATIC ${SOURCES})
+
+# Tests unitaires
+enable_testing()
+file(GLOB TEST_SOURCES ${TEST_DIR}/*.cpp)
+
+foreach(test_source ${TEST_SOURCES})
+    # Extraire le nom du test à partir du fichier source
+    get_filename_component(test_name ${test_source} NAME_WE)
+    add_executable(${test_name} ${test_source} ${SOURCES})
+    target_link_libraries(${test_name} ml_embedded)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
+
+# Exemples
+file(GLOB EXAMPLE_SOURCES ${EXAMPLES_DIR}/*/src/*.cpp)
+
+foreach(example_source ${EXAMPLE_SOURCES})
+    # Extraire le nom de l'exemple à partir du chemin
+    get_filename_component(example_name ${example_source} DIRECTORY)
+    get_filename_component(example_name ${example_name} NAME)
+    add_executable(${example_name} ${example_source} ${SOURCES})
+    target_link_libraries(${example_name} ml_embedded)
+endforeach()
+
+# Option pour un nettoyage complet
+add_custom_target(clean_all
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/cmake_clean.cmake
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
+)
+
+message(STATUS "Configuration terminée. Vous pouvez maintenant compiler avec 'make'.")
