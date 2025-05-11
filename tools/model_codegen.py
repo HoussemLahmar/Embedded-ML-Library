@@ -31,7 +31,7 @@ static const int32_t {model_name}_bias = {bias};
     print(f"Header file generated: {header_path}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Code generation for ML models")
+    parser = argparse.ArgumentParser(description="Generate pre-trained model headers.")
     parser.add_argument("--model_name", type=str, required=True, help="Name of the model")
     parser.add_argument("--weights", type=str, required=True, help="Comma-separated weights")
     parser.add_argument("--bias", type=float, required=True, help="Bias of the model")
